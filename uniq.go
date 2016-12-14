@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"sync"
+	"time"
 )
 
 func main() {
@@ -14,6 +16,7 @@ func main() {
 	log.SetPrefix("orduniq: ")
 	bufoutSize := flag.Int("o", 1024, "output buffer size in `bytes`")
 	bufinSize := flag.Int("i", 1024, "input buffer size in `bytes`")
+	flushEvery := flag.Duration("f", time.Second, "flush every `interval`")
 	flag.Parse()
 
 	var inputs []io.Reader
@@ -55,6 +58,18 @@ func main() {
 		}
 	}()
 
+	var outlock sync.Mutex
+	if iv := *flushEvery; iv > 0 {
+		go func() {
+			for range time.Tick(iv) {
+				outlock.Lock()
+				if err := bufout.Flush(); err != nil {
+					log.Panic("unable to flush output buffer: ", err)
+				}
+			}
+		}()
+	}
+
 	for {
 		line, err := input.ReadBytes('\n')
 		if err != nil {
@@ -77,6 +92,8 @@ func main() {
 		}
 		hashes[sum] = struct{}{}
 
+		outlock.Lock()
 		bufout.Write(data)
+		outlock.Unlock()
 	}
 }
