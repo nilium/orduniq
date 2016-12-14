@@ -12,6 +12,8 @@ import (
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("orduniq: ")
+	bufoutSize := flag.Int("o", 1024, "output buffer size in `bytes`")
+	bufinSize := flag.Int("i", 1024, "input buffer size in `bytes`")
 	flag.Parse()
 
 	var inputs []io.Reader
@@ -43,9 +45,9 @@ func main() {
 	}
 
 	hashes := make(map[[sha1.Size]byte]struct{})
-	input := bufio.NewReader(io.MultiReader(inputs...))
+	input := bufio.NewReaderSize(io.MultiReader(inputs...), *bufinSize)
 
-	bufout := bufio.NewWriter(os.Stdout)
+	bufout := bufio.NewWriterSize(os.Stdout, *bufoutSize)
 	defer func() {
 		ferr := bufout.Flush()
 		if ferr != nil {
